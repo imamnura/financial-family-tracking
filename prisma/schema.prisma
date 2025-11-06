@@ -1,0 +1,392 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  ADMIN   // Kepala keluarga (ayah/ibu)
+  MEMBER  // Anggota keluarga (pasangan/anak)
+}
+
+enum TransactionType {
+  INCOME   // Pemasukan
+  EXPENSE  // Pengeluaran
+  TRANSFER // Transfer antar wallet
+}
+
+enum AssetType {
+  PROPERTY    // Properti (rumah, tanah)
+  VEHICLE     // Kendaraan
+  SAVINGS     // Tabungan
+  INVESTMENT  // Investasi
+  OTHER       // Lainnya
+}
+
+enum LiabilityType {
+  MORTGAGE       // KPR
+  CAR_LOAN       // Kredit kendaraan
+  CREDIT_CARD    // Kartu kredit
+  PERSONAL_LOAN  // Pinjaman pribadi
+  OTHER          // Lainnya
+}
+
+enum InviteStatus {
+  PENDING   // Menunggu konfirmasi
+  ACCEPTED  // Diterima
+  REJECTED  // Ditolak
+  EXPIRED   // Kadaluarsa
+}
+
+enum GoalStatus {
+  ACTIVE      // Aktif
+  COMPLETED   // Tercapai
+  CANCELLED   // Dibatalkan
+}
+
+enum BudgetPeriod {
+  MONTHLY  // Bulanan
+  YEARLY   // Tahunan
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // Hashed with bcrypt
+  role      Role     @default(MEMBER)
+  avatar    String?  // URL to avatar image
+  
+  // Relations
+  familyId  String?
+  family    Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  
+  // User activity
+  transactions          Transaction[]
+  budgetCreated         Budget[]
+  goalContributions     GoalContribution[]
+  auditLogs             AuditLog[]
+  
+  // Invitations
+  invitesSent     FamilyInvite[] @relation("InviteSender")
+  invitesReceived FamilyInvite[] @relation("InviteReceiver")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([email])
+}
+
+model Family {
+  id          String   @id @default(cuid())
+  name        String   // Nama keluarga, misal: "Keluarga Budi"
+  description String?
+  
+  // Relations
+  members       User[]
+  wallets       Wallet[]
+  categories    Category[]
+  transactions  Transaction[]
+  assets        Asset[]
+  liabilities   Liability[]
+  invites       FamilyInvite[]
+  goals         Goal[]
+  budgets       Budget[]
+  auditLogs     AuditLog[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([name])
+}
+
+model Wallet {
+  id          String  @id @default(cuid())
+  name        String  // Nama wallet, misal: "BCA Ayah", "GoPay Ibu"
+  type        String  // "BANK", "E_WALLET", "CASH"
+  balance     Float   @default(0)
+  description String?
+  icon        String? // Icon identifier
+  color       String? // Hex color untuk UI
+  
+  // Relations
+  familyId     String
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  transactionsFrom  Transaction[] @relation("FromWallet")
+  transactionsTo    Transaction[] @relation("ToWallet")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  // Nama kategori, misal: "Makanan", "Transport"
+  type        TransactionType // INCOME or EXPENSE
+  icon        String? // Icon identifier
+  color       String? // Hex color untuk UI
+  description String?
+  
+  // Relations
+  familyId     String
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([familyId, name, type]) // Unique per family
+  @@index([familyId])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  amount      Float
+  type        TransactionType
+  description String?
+  notes       String?         // Catatan tambahan
+  date        DateTime        @default(now()) // Tanggal transaksi
+  
+  // Relations
+  familyId    String
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  // Untuk TRANSFER, gunakan fromWallet dan toWallet
+  // Untuk INCOME/EXPENSE, gunakan fromWallet saja
+  fromWalletId String?
+  fromWallet   Wallet?  @relation("FromWallet", fields: [fromWalletId], references: [id], onDelete: SetNull)
+  
+  toWalletId   String?
+  toWallet     Wallet?  @relation("ToWallet", fields: [toWalletId], references: [id], onDelete: SetNull)
+  
+  // Attachment/receipt image
+  attachment  String?  // URL to receipt/proof
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([userId])
+  @@index([categoryId])
+  @@index([date])
+  @@index([type])
+}
+
+model Asset {
+  id              String    @id @default(cuid())
+  name            String    // Nama aset, misal: "Rumah Jakarta"
+  type            AssetType
+  value           Float     // Nilai aset saat ini
+  description     String?
+  acquisitionDate DateTime? // Tanggal perolehan
+  
+  // Relations
+  familyId    String
+  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([type])
+}
+
+model Liability {
+  id              String        @id @default(cuid())
+  name            String        // Nama hutang, misal: "KPR Rumah"
+  type            LiabilityType
+  amount          Float         // Total hutang awal (renamed from totalAmount)
+  remainingAmount Float         // Sisa hutang
+  interestRate    Float?        // Bunga (%)
+  creditor        String?       // Nama kreditor/pemberi pinjaman
+  dueDate         DateTime?     // Jatuh tempo
+  startDate       DateTime?     // Tanggal mulai
+  description     String?
+  
+  // Relations
+  familyId    String
+  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([type])
+  @@index([dueDate])
+}
+
+model FamilyInvite {
+  id        String       @id @default(cuid())
+  email     String       // Email yang diundang
+  token     String       @unique // Token unik untuk link undangan
+  status    InviteStatus @default(PENDING)
+  expiresAt DateTime     // Waktu kadaluarsa
+  
+  // Relations
+  familyId  String
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  senderId  String
+  sender    User   @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  receiverId String?
+  receiver   User?  @relation("InviteReceiver", fields: [receiverId], references: [id], onDelete: SetNull)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([email])
+  @@index([token])
+  @@index([status])
+}
+
+model Goal {
+  id            String     @id @default(cuid())
+  name          String     // Nama goal, misal: "Liburan Bali 2024"
+  description   String?
+  targetAmount  Float      // Target dana
+  currentAmount Float      @default(0) // Dana terkumpul
+  deadline      DateTime?  // Target waktu
+  status        GoalStatus @default(ACTIVE)
+  
+  // Relations
+  familyId      String
+  family        Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  contributions GoalContribution[]
+  distributions GoalDistribution[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([status])
+}
+
+model GoalContribution {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  
+  // Relations
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([goalId])
+  @@index([userId])
+}
+
+model GoalDistribution {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  recipientEmail String // Email penerima
+  recipientName  String // Nama penerima
+  date        DateTime @default(now())
+  
+  // Relations
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([goalId])
+}
+
+model Budget {
+  id          String       @id @default(cuid())
+  name        String?      // Nama budget (optional)
+  amount      Float        // Jumlah budget
+  spent       Float        @default(0) // Sudah terpakai
+  period      BudgetPeriod @default(MONTHLY)
+  startDate   DateTime?    // Tanggal mulai (optional jika pakai month/year)
+  endDate     DateTime?    // Tanggal akhir (optional jika pakai month/year)
+  
+  // Month/Year tracking (alternative to startDate/endDate)
+  month       Int?         // 1-12 untuk tracking per bulan
+  year        Int?         // YYYY untuk tracking per tahun
+  
+  // Alert settings
+  alertThreshold Float? // Alert jika sudah mencapai % tertentu (misal: 80)
+  
+  // Relations
+  familyId   String
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  createdById String
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([familyId, categoryId, month, year])
+  @@index([familyId])
+  @@index([categoryId])
+  @@index([startDate, endDate])
+  @@index([month, year])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // "CREATE", "UPDATE", "DELETE"
+  entityType  String   // "Transaction", "Asset", "Liability", dll
+  entityId    String   // ID dari entity yang diubah
+  dataBefore  String?  @db.Text // JSON string dari data sebelum perubahan
+  dataAfter   String?  @db.Text // JSON string dari data setelah perubahan
+  details     String?  @db.Text // JSON string untuk additional details
+  changes     String?  @db.Text // JSON string untuk track changes
+  ipAddress   String?
+  userAgent   String?
+  
+  // Relations
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId String?
+  family   Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([familyId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
