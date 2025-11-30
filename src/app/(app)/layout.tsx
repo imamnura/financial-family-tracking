@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavItem {
   name: string;
@@ -12,10 +12,15 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
+    name: "Dashboard",
+    href: "/dashboard",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -26,10 +31,15 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Transaksi',
-    href: '/transactions',
+    name: "Transaksi",
+    href: "/transactions",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -40,10 +50,15 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Aset',
-    href: '/assets',
+    name: "Aset",
+    href: "/assets",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -54,10 +69,15 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Hutang',
-    href: '/liabilities',
+    name: "Hutang",
+    href: "/liabilities",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -68,10 +88,15 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Budget',
-    href: '/budget',
+    name: "Budget",
+    href: "/budgets",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -82,10 +107,15 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Target',
-    href: '/goals',
+    name: "Target",
+    href: "/goals",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -96,10 +126,53 @@ const navigation: NavItem[] = [
     ),
   },
   {
-    name: 'Keluarga',
-    href: '/family',
+    name: "Recurring",
+    href: "/recurring",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Templates",
+    href: "/templates",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 10V3L4 14h7v7l9-11h-7z"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Keluarga",
+    href: "/family",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -117,20 +190,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Placeholder - will be replaced with actual user data from session
-  const [userName] = useState<string>('User');
+  const [userName] = useState<string>("User");
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
 
     setIsLoggingOut(true);
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
+      await fetch("/api/auth/logout", {
+        method: "POST",
       });
-      router.push('/login');
+      router.push("/login");
       router.refresh();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       setIsLoggingOut(false);
     }
   };
@@ -150,7 +223,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         className={`
           fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
           transform transition-transform duration-200 ease-in-out lg:translate-x-0
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         {/* Logo */}
@@ -168,8 +241,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsSidebarOpen(false)}
             className="lg:hidden text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -177,7 +260,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+            const isActive =
+              pathname === item.href || pathname?.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.name}
@@ -187,8 +271,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
                   ${
                     isActive
-                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   }
                 `}
               >
@@ -217,7 +301,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             disabled={isLoggingOut}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20 transition-colors disabled:opacity-50"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -225,7 +314,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               />
             </svg>
-            {isLoggingOut ? 'Logging out...' : 'Keluar'}
+            {isLoggingOut ? "Logging out..." : "Keluar"}
           </button>
         </div>
       </aside>
@@ -239,21 +328,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsSidebarOpen(true)}
             className="lg:hidden text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
 
           {/* Page title - will be dynamic later */}
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {navigation.find((item) => pathname === item.href)?.name || 'Family Tracker'}
+            {navigation.find((item) => pathname === item.href)?.name ||
+              "Family Tracker"}
           </h1>
 
           {/* Header actions */}
           <div className="flex items-center gap-4">
             {/* Notification bell (placeholder) */}
             <button className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -263,12 +368,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </svg>
             </button>
 
-            {/* Settings (placeholder) */}
+            {/* Settings */}
             <Link
-              href="/settings"
+              href="/family/settings"
               className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              title="Pengaturan Keluarga"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -287,9 +398,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );

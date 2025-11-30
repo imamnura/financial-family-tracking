@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import { useState, FormEvent, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useState, FormEvent, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Get invitation parameters from URL
-  const invitationId = searchParams.get('invitationId');
-  const token = searchParams.get('token'); // Support token parameter
-  const invitedEmail = searchParams.get('email');
+  const invitationId = searchParams.get("invitationId");
+  const token = searchParams.get("token"); // Support token parameter
+  const invitedEmail = searchParams.get("email");
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: invitedEmail || '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: invitedEmail || "",
+    password: "",
+    confirmPassword: "",
   });
 
   // Update email if invitedEmail changes
@@ -31,11 +31,11 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     // Validate password confirmation
     if (formData.password !== formData.confirmPassword) {
-      setError('Password dan konfirmasi password tidak sama');
+      setError("Password dan konfirmasi password tidak sama");
       return;
     }
 
@@ -61,10 +61,10 @@ export default function RegisterPage() {
         requestBody.token = token;
       }
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
@@ -72,14 +72,14 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registrasi gagal');
+        throw new Error(data.error || "Registrasi gagal");
       }
 
       // Redirect to dashboard on success
-      router.push('/dashboard');
+      router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +90,14 @@ export default function RegisterPage() {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {invitationId || token ? 'Bergabung dengan Keluarga' : 'Daftar Akun Baru'}
+          {invitationId || token
+            ? "Bergabung dengan Keluarga"
+            : "Daftar Akun Baru"}
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           {invitationId || token
-            ? 'Lengkapi data untuk bergabung dengan keluarga.'
-            : 'Buat akun untuk mulai mengelola keuangan keluarga Anda.'}
+            ? "Lengkapi data untuk bergabung dengan keluarga."
+            : "Buat akun untuk mulai mengelola keuangan keluarga Anda."}
         </p>
       </div>
 
@@ -103,18 +105,15 @@ export default function RegisterPage() {
       {(invitationId || token) && invitedEmail && (
         <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
-            <svg
-              className="w-5 h-5"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
                 d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                 clipRule="evenodd"
               />
             </svg>
-            Anda mendaftar untuk bergabung dengan undangan keluarga. Gunakan email: <strong>{invitedEmail}</strong>
+            Anda mendaftar untuk bergabung dengan undangan keluarga. Gunakan
+            email: <strong>{invitedEmail}</strong>
           </p>
         </div>
       )}
@@ -123,11 +122,7 @@ export default function RegisterPage() {
       {error && (
         <div className="mb-4 p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg">
           <p className="text-sm text-danger-800 dark:text-danger-200 flex items-center gap-2">
-            <svg
-              className="w-5 h-5"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
                 d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -155,9 +150,7 @@ export default function RegisterPage() {
             required
             autoComplete="name"
             value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="input-field w-full"
             placeholder="John Doe"
             disabled={isLoading}
@@ -215,7 +208,8 @@ export default function RegisterPage() {
             disabled={isLoading}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Minimal 8 karakter, harus mengandung huruf besar, huruf kecil, dan angka
+            Minimal 8 karakter, harus mengandung huruf besar, huruf kecil, dan
+            angka
           </p>
         </div>
 
@@ -272,7 +266,7 @@ export default function RegisterPage() {
               Memproses...
             </span>
           ) : (
-            'Daftar'
+            "Daftar"
           )}
         </button>
       </form>
@@ -290,12 +284,23 @@ export default function RegisterPage() {
       </div>
 
       {/* Login Link */}
-      <Link
-        href="/login"
-        className="btn-secondary w-full text-center"
-      >
+      <Link href="/login" className="btn-secondary w-full text-center">
         Masuk Sekarang
       </Link>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          Loading...
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

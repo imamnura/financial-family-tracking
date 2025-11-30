@@ -59,6 +59,20 @@ enum BudgetPeriod {
   YEARLY   // Tahunan
 }
 
+enum RecurringFrequency {
+  DAILY     // Harian
+  WEEKLY    // Mingguan
+  MONTHLY   // Bulanan
+  YEARLY    // Tahunan
+}
+
+enum RecurringStatus {
+  ACTIVE    // Aktif
+  PAUSED    // Dijeda
+  COMPLETED // Selesai
+  CANCELLED // Dibatalkan
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -80,6 +94,11 @@ model User {
   budgetCreated         Budget[]
   goalContributions     GoalContribution[]
   auditLogs             AuditLog[]
+  recurringTransactions RecurringTransaction[]
+  transactionTemplates  TransactionTemplate[]
+  notifications         Notification[]
+  reminderSchedules     ReminderSchedule[]
+  emailLogs             EmailLog[]
   
   // Invitations
   invitesSent     FamilyInvite[] @relation("InviteSender")
@@ -97,6 +116,22 @@ model Family {
   name        String   // Nama keluarga, misal: "Keluarga Budi"
   description String?
   
+  // Settings & Preferences
+  currency         String  @default("IDR")        // Mata uang default
+  timezone         String  @default("Asia/Jakarta") // Timezone
+  language         String  @default("id")          // Bahasa (id/en)
+  dateFormat       String  @default("DD/MM/YYYY")  // Format tanggal
+  
+  // Notification Preferences
+  budgetAlerts     Boolean @default(true)   // Alert budget threshold
+  goalReminders    Boolean @default(true)   // Reminder goal deadlines
+  weeklyReport     Boolean @default(false)  // Laporan mingguan
+  monthlyReport    Boolean @default(true)   // Laporan bulanan
+  emailNotif       Boolean @default(true)   // Email notifications
+  
+  // Budget Settings
+  defaultBudgetAlert Float? @default(80)    // Default alert threshold (%)
+  
   // Relations
   members       User[]
   wallets       Wallet[]
@@ -108,6 +143,11 @@ model Family {
   goals         Goal[]
   budgets       Budget[]
   auditLogs     AuditLog[]
+  recurringTransactions RecurringTransaction[]
+  transactionTemplates  TransactionTemplate[]
+  notifications         Notification[]
+  reminderSchedules     ReminderSchedule[]
+  emailLogs             EmailLog[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,6 +171,12 @@ model Wallet {
   transactionsFrom  Transaction[] @relation("FromWallet")
   transactionsTo    Transaction[] @relation("ToWallet")
   
+  recurringFrom RecurringTransaction[] @relation("RecurringFromWallet")
+  recurringTo   RecurringTransaction[] @relation("RecurringToWallet")
+  
+  templateFrom  TransactionTemplate[] @relation("TemplateFromWallet")
+  templateTo    TransactionTemplate[] @relation("TemplateToWallet")
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -150,6 +196,8 @@ model Category {
   family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   budgets      Budget[]
+  recurringTransactions RecurringTransaction[]
+  transactionTemplates  TransactionTemplate[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,18 +250,36 @@ model Asset {
   name            String    // Nama aset, misal: "Rumah Jakarta"
   type            AssetType
   value           Float     // Nilai aset saat ini
+  purchasePrice   Float?    // Harga beli awal
   description     String?
   acquisitionDate DateTime? // Tanggal perolehan
+  depreciationRate Float?   // Persentase depresiasi per tahun (untuk VEHICLE, PROPERTY)
   
   // Relations
   familyId    String
-  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  valueHistory AssetValueHistory[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@index([familyId])
   @@index([type])
+}
+
+model AssetValueHistory {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  value     Float    // Nilai aset pada waktu tertentu
+  date      DateTime @default(now())
+  notes     String?  // Catatan perubahan nilai
+  source    String?  // Sumber valuasi (manual, market, appraisal)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([assetId])
+  @@index([date])
 }
 
 model Liability {
@@ -226,11 +292,14 @@ model Liability {
   creditor        String?       // Nama kreditor/pemberi pinjaman
   dueDate         DateTime?     // Jatuh tempo
   startDate       DateTime?     // Tanggal mulai
+  monthlyPayment  Float?        // Angsuran bulanan
+  term            Int?          // Jangka waktu (bulan)
   description     String?
   
   // Relations
   familyId    String
-  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  payments    LiabilityPayment[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,6 +307,23 @@ model Liability {
   @@index([familyId])
   @@index([type])
   @@index([dueDate])
+}
+
+model LiabilityPayment {
+  id            String     @id @default(cuid())
+  liabilityId   String
+  liability     Liability  @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+  amount        Float      // Jumlah pembayaran
+  principalPaid Float      // Pokok yang dibayar
+  interestPaid  Float      // Bunga yang dibayar
+  paymentDate   DateTime   @default(now())
+  notes         String?
+  paymentMethod String?    // Transfer, cash, etc
+  
+  createdAt DateTime @default(now())
+  
+  @@index([liabilityId])
+  @@index([paymentDate])
 }
 
 model FamilyInvite {
@@ -390,3 +476,223 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
+
+model RecurringTransaction {
+  id          String              @id @default(cuid())
+  name        String              // Nama recurring (misal: "Gaji Bulanan", "Tagihan Listrik")
+  amount      Float
+  type        TransactionType     // INCOME or EXPENSE
+  description String?
+  notes       String?
+  
+  // Scheduling
+  frequency   RecurringFrequency  // DAILY, WEEKLY, MONTHLY, YEARLY
+  startDate   DateTime            // Tanggal mulai
+  endDate     DateTime?           // Tanggal berakhir (optional, null = unlimited)
+  nextDate    DateTime            // Tanggal eksekusi berikutnya
+  lastRunDate DateTime?           // Terakhir kali dijalankan
+  
+  // Optional: day of month (1-31) untuk MONTHLY
+  dayOfMonth  Int?                // Untuk MONTHLY: tanggal berapa (1-31)
+  
+  // Optional: day of week (0-6) untuk WEEKLY
+  dayOfWeek   Int?                // Untuk WEEKLY: 0=Sunday, 1=Monday, dst
+  
+  status      RecurringStatus     @default(ACTIVE)
+  
+  // Relations
+  familyId    String
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  fromWalletId String?
+  fromWallet   Wallet?  @relation("RecurringFromWallet", fields: [fromWalletId], references: [id], onDelete: SetNull)
+  
+  toWalletId   String?
+  toWallet     Wallet?  @relation("RecurringToWallet", fields: [toWalletId], references: [id], onDelete: SetNull)
+  
+  createdById String
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([status])
+  @@index([nextDate])
+  @@index([createdById])
+}
+
+model TransactionTemplate {
+  id          String          @id @default(cuid())
+  name        String          // Nama template (misal: "Makan Siang Kantor")
+  amount      Float?          // Jumlah (optional, bisa diisi saat pakai template)
+  type        TransactionType
+  description String?
+  notes       String?
+  
+  // Relations
+  familyId    String
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  fromWalletId String?
+  fromWallet   Wallet?  @relation("TemplateFromWallet", fields: [fromWalletId], references: [id], onDelete: SetNull)
+  
+  toWalletId   String?
+  toWallet     Wallet?  @relation("TemplateToWallet", fields: [toWalletId], references: [id], onDelete: SetNull)
+  
+  createdById String
+  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Usage tracking
+  usageCount  Int      @default(0)  // Berapa kali template ini dipakai
+  lastUsedAt  DateTime?             // Terakhir kali digunakan
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([familyId])
+  @@index([createdById])
+  @@index([usageCount])
+}
+
+// ============================================
+// NOTIFICATION & REMINDER MODELS
+// ============================================
+
+enum NotificationType {
+  DUE_DATE_REMINDER      // Pengingat jatuh tempo
+  BUDGET_ALERT           // Alert budget (warning/exceeded)
+  GOAL_MILESTONE         // Pencapaian goal
+  PAYMENT_DUE            // Pembayaran jatuh tempo
+  WEEKLY_SUMMARY         // Ringkasan mingguan
+  MONTHLY_SUMMARY        // Ringkasan bulanan
+  SYSTEM                 // Notifikasi sistem
+}
+
+enum NotificationStatus {
+  PENDING    // Menunggu dikirim
+  SENT       // Sudah dikirim
+  FAILED     // Gagal
+  READ       // Sudah dibaca
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  type        NotificationType
+  status      NotificationStatus @default(PENDING)
+  
+  title       String
+  message     String             @db.Text
+  data        Json?              // Data tambahan (JSON)
+  
+  // Email tracking
+  emailSent   Boolean            @default(false)
+  emailSentAt DateTime?
+  emailError  String?
+  
+  // Read status
+  readAt      DateTime?
+  
+  // Relations
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  familyId    String
+  family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  // Reference (optional - untuk link ke entity terkait)
+  referenceId   String?          // ID dari Budget/Goal/Liability/dll
+  referenceType String?          // "budget", "goal", "liability", dll
+  
+  // Email logs
+  emailLogs   EmailLog[]
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  @@index([userId, status])
+  @@index([familyId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ReminderSchedule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  // Schedule settings
+  enabled     Boolean  @default(true)
+  frequency   String   // "daily", "weekly", "monthly", "custom"
+  dayOfWeek   Int?     // 0-6 (Sunday-Saturday) untuk weekly
+  dayOfMonth  Int?     // 1-31 untuk monthly
+  time        String   // HH:mm format (misal: "09:00")
+  
+  // Notification settings
+  notificationType NotificationType
+  emailEnabled     Boolean @default(true)
+  inAppEnabled     Boolean @default(true)
+  
+  // Custom criteria (JSON)
+  criteria    Json?    // Kriteria khusus untuk reminder
+  
+  // Tracking
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  runCount    Int      @default(0)
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  familyId    String
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([familyId, enabled])
+  @@index([userId])
+  @@index([nextRunAt])
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  
+  to          String
+  subject     String
+  body        String   @db.Text
+  
+  status      String   // "sent", "failed", "pending"
+  error       String?  @db.Text
+  
+  // Metadata
+  provider    String?  // "nodemailer", "sendgrid", dll
+  messageId   String?
+  
+  // Relations
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  
+  notificationId String?
+  notification   Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([familyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+
