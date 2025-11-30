@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
-import { requireAuth, requireFamily } from '@/lib/auth';
-import { PrismaErrorHandler } from '@/lib/prisma-helpers';
-import { sendBudgetWarningEmail } from '@/lib/email';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireAuth, requireFamily } from "@/lib/auth";
+import { PrismaErrorHandler } from "@/lib/prisma-helpers";
+import { sendBudgetWarningEmail } from "@/lib/email";
 
 /**
  * Transaction Creation Schema
@@ -11,32 +11,32 @@ import { sendBudgetWarningEmail } from '@/lib/email';
 const CreateTransactionSchema = z.object({
   amount: z
     .number()
-    .positive('Jumlah harus lebih dari 0')
-    .max(999999999999, 'Jumlah terlalu besar'),
-  type: z.enum(['INCOME', 'EXPENSE'], {
-    errorMap: () => ({ message: 'Tipe harus INCOME atau EXPENSE' }),
+    .positive("Jumlah harus lebih dari 0")
+    .max(999999999999, "Jumlah terlalu besar"),
+  type: z.enum(["INCOME", "EXPENSE"], {
+    errorMap: () => ({ message: "Tipe harus INCOME atau EXPENSE" }),
   }),
   description: z
     .string()
-    .min(1, 'Deskripsi tidak boleh kosong')
-    .max(500, 'Deskripsi maksimal 500 karakter')
+    .min(1, "Deskripsi tidak boleh kosong")
+    .max(500, "Deskripsi maksimal 500 karakter")
     .trim(),
   date: z
     .string()
-    .datetime({ message: 'Format tanggal tidak valid' })
+    .datetime({ message: "Format tanggal tidak valid" })
     .or(z.date()),
-  categoryId: z.string().uuid('Category ID tidak valid'),
-  walletId: z.string().uuid('Wallet ID tidak valid'),
-  notes: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional(),
+  categoryId: z.string().uuid("Category ID tidak valid"),
+  walletId: z.string().uuid("Wallet ID tidak valid"),
+  notes: z.string().max(1000, "Catatan maksimal 1000 karakter").optional(),
 });
 
 type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
 
 /**
  * GET /api/transactions
- * 
+ *
  * Get all transactions for the user's family
- * 
+ *
  * @example
  * ```typescript
  * const response = await fetch('/api/transactions');
@@ -47,18 +47,18 @@ export async function GET(request: NextRequest) {
   try {
     // Get current session
     const session = await requireAuth();
-    
+
     // Ensure user has a family
     await requireFamily(session);
 
     // Get query parameters for filtering (optional)
     const { searchParams } = request.nextUrl;
-    const type = searchParams.get('type') as 'INCOME' | 'EXPENSE' | null;
-    const categoryId = searchParams.get('categoryId');
-    const walletId = searchParams.get('walletId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const type = searchParams.get("type") as "INCOME" | "EXPENSE" | null;
+    const categoryId = searchParams.get("categoryId");
+    const walletId = searchParams.get("walletId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const limit = parseInt(searchParams.get("limit") || "50");
 
     // Build filter conditions
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,7 +107,13 @@ export async function GET(request: NextRequest) {
             type: true,
           },
         },
-        wallet: {
+        fromWallet: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        toWallet: {
           select: {
             id: true,
             name: true,
@@ -115,7 +121,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        date: 'desc',
+        date: "desc",
       },
       take: Math.min(limit, 100), // Max 100 transactions
     });
@@ -130,9 +136,9 @@ export async function GET(request: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     transactions.forEach((transaction: any) => {
-      if (transaction.type === 'INCOME') {
+      if (transaction.type === "INCOME") {
         summary.totalIncome += transaction.amount;
-      } else if (transaction.type === 'EXPENSE') {
+      } else if (transaction.type === "EXPENSE") {
         summary.totalExpense += transaction.amount;
       }
     });
@@ -144,13 +150,13 @@ export async function GET(request: NextRequest) {
       summary,
     });
   } catch (error) {
-    console.error('Get transactions error:', error);
+    console.error("Get transactions error:", error);
 
-    if (error instanceof Error && error.message.includes('required')) {
+    if (error instanceof Error && error.message.includes("required")) {
       return NextResponse.json(
         {
           error: error.message,
-          code: 'UNAUTHORIZED',
+          code: "UNAUTHORIZED",
         },
         { status: 401 }
       );
@@ -158,8 +164,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'Terjadi kesalahan saat mengambil data transaksi',
-        code: 'INTERNAL_ERROR',
+        error: "Terjadi kesalahan saat mengambil data transaksi",
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -168,9 +174,9 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/transactions
- * 
+ *
  * Create a new transaction and update wallet balance
- * 
+ *
  * @example
  * ```typescript
  * const response = await fetch('/api/transactions', {
@@ -191,18 +197,20 @@ export async function POST(request: NextRequest) {
   try {
     // Get current session
     const session = await requireAuth();
-    
+
     // Ensure user has a family
     await requireFamily(session);
 
     // Parse and validate request body
     const body = await request.json();
-    const validatedData: CreateTransactionInput = CreateTransactionSchema.parse(body);
+    const validatedData: CreateTransactionInput =
+      CreateTransactionSchema.parse(body);
 
-    const { amount, type, description, date, categoryId, walletId, notes } = validatedData;
+    const { amount, type, description, date, categoryId, walletId, notes } =
+      validatedData;
 
     // Convert date string to Date object if needed
-    const transactionDate = typeof date === 'string' ? new Date(date) : date;
+    const transactionDate = typeof date === "string" ? new Date(date) : date;
 
     // Create transaction and update wallet balance in a transaction
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -214,11 +222,11 @@ export async function POST(request: NextRequest) {
       });
 
       if (!wallet) {
-        throw new Error('Wallet tidak ditemukan');
+        throw new Error("Wallet tidak ditemukan");
       }
 
       if (wallet.familyId !== session.familyId) {
-        throw new Error('Wallet tidak milik keluarga Anda');
+        throw new Error("Wallet tidak milik keluarga Anda");
       }
 
       // 2. Verify category belongs to user's family
@@ -228,11 +236,11 @@ export async function POST(request: NextRequest) {
       });
 
       if (!category) {
-        throw new Error('Kategori tidak ditemukan');
+        throw new Error("Kategori tidak ditemukan");
       }
 
       if (category.familyId !== session.familyId) {
-        throw new Error('Kategori tidak milik keluarga Anda');
+        throw new Error("Kategori tidak milik keluarga Anda");
       }
 
       // 3. Validate category type matches transaction type
@@ -242,15 +250,15 @@ export async function POST(request: NextRequest) {
 
       // 4. Calculate new wallet balance
       let newBalance = wallet.balance;
-      if (type === 'INCOME') {
+      if (type === "INCOME") {
         newBalance += amount;
-      } else if (type === 'EXPENSE') {
+      } else if (type === "EXPENSE") {
         newBalance -= amount;
       }
 
       // Check if wallet has sufficient balance for expenses
-      if (type === 'EXPENSE' && newBalance < 0) {
-        throw new Error('Saldo wallet tidak mencukupi');
+      if (type === "EXPENSE" && newBalance < 0) {
+        throw new Error("Saldo wallet tidak mencukupi");
       }
 
       // 5. Create transaction
@@ -300,8 +308,8 @@ export async function POST(request: NextRequest) {
       // 7. Create audit log
       await tx.auditLog.create({
         data: {
-          action: 'CREATE_TRANSACTION',
-          entityType: 'Transaction',
+          action: "CREATE_TRANSACTION",
+          entityType: "Transaction",
           entityId: transaction.id,
           details: JSON.stringify({
             type,
@@ -327,7 +335,7 @@ export async function POST(request: NextRequest) {
 
     // 8. Check budget warning (async, non-blocking)
     // Only for EXPENSE transactions
-    if (type === 'EXPENSE') {
+    if (type === "EXPENSE") {
       // Don't await - run in background to not block response
       checkBudgetWarning(
         session.familyId!,
@@ -335,20 +343,20 @@ export async function POST(request: NextRequest) {
         categoryId,
         transactionDate
       ).catch((err: Error) => {
-        console.error('Budget warning check failed:', err);
+        console.error("Budget warning check failed:", err);
       });
     }
 
     return NextResponse.json(
       {
-        message: 'Transaksi berhasil dibuat',
+        message: "Transaksi berhasil dibuat",
         transaction: result.transaction,
         wallet: result.wallet,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Create transaction error:', error);
+    console.error("Create transaction error:", error);
 
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
@@ -356,19 +364,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: firstError.message,
-          code: 'VALIDATION_ERROR',
-          field: firstError.path.join('.'),
+          code: "VALIDATION_ERROR",
+          field: firstError.path.join("."),
         },
         { status: 400 }
       );
     }
 
     // Handle authorization errors
-    if (error instanceof Error && error.message.includes('required')) {
+    if (error instanceof Error && error.message.includes("required")) {
       return NextResponse.json(
         {
           error: error.message,
-          code: 'UNAUTHORIZED',
+          code: "UNAUTHORIZED",
         },
         { status: 401 }
       );
@@ -377,15 +385,15 @@ export async function POST(request: NextRequest) {
     // Handle business logic errors
     if (error instanceof Error) {
       if (
-        error.message.includes('tidak ditemukan') ||
-        error.message.includes('tidak milik') ||
-        error.message.includes('tidak mencukupi') ||
-        error.message.includes('Kategori ini untuk')
+        error.message.includes("tidak ditemukan") ||
+        error.message.includes("tidak milik") ||
+        error.message.includes("tidak mencukupi") ||
+        error.message.includes("Kategori ini untuk")
       ) {
         return NextResponse.json(
           {
             error: error.message,
-            code: 'BUSINESS_LOGIC_ERROR',
+            code: "BUSINESS_LOGIC_ERROR",
           },
           { status: 400 }
         );
@@ -393,7 +401,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle Prisma errors
-    if (error && typeof error === 'object' && 'code' in error) {
+    if (error && typeof error === "object" && "code" in error) {
       const prismaError = PrismaErrorHandler.handle(error);
       return NextResponse.json(
         {
@@ -407,8 +415,8 @@ export async function POST(request: NextRequest) {
     // Handle generic errors
     return NextResponse.json(
       {
-        error: 'Terjadi kesalahan saat membuat transaksi',
-        code: 'INTERNAL_ERROR',
+        error: "Terjadi kesalahan saat membuat transaksi",
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -439,7 +447,7 @@ async function checkBudgetWarning(
       where: {
         familyId,
         categoryId,
-        type: 'EXPENSE',
+        type: "EXPENSE",
         date: {
           gte: startOfMonth,
           lte: endOfMonth,
@@ -489,7 +497,7 @@ async function checkBudgetWarning(
       });
 
       if (!user?.email) {
-        console.warn('User email not found for budget warning');
+        console.warn("User email not found for budget warning");
         return;
       }
 
@@ -497,18 +505,23 @@ async function checkBudgetWarning(
       await sendBudgetWarningEmail(
         user.email,
         user.name,
-        budget.category.name,
+        budget.category?.name || "Uncategorized",
         Number(budget.amount),
         currentSpent,
         percentage
       );
 
-      console.log(
-        `📧 Budget warning sent to ${user.email} for category ${budget.category.name} (${percentage.toFixed(1)}%)`
-      );
+      // Log budget warning sent
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `📧 Budget warning sent to ${user.email} for category ${
+            budget.category?.name || "Uncategorized"
+          } (${percentage.toFixed(1)}%)`
+        );
+      }
     }
   } catch (error) {
-    console.error('Error in checkBudgetWarning:', error);
+    console.error("Error in checkBudgetWarning:", error);
     // Don't throw - this is a background task
   }
 }
